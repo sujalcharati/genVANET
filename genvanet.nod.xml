@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<nodes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/nodes_file.xsd">
+
+    <!-- Entry/Exit points -->
+    <node id="S1"  x="-200" y="0"    type="priority"/>  <!-- Start West -->
+    <node id="S2"  x="-200" y="-200" type="priority"/>  <!-- Start2 Southwest -->
+    <node id="D1"  x="600"  y="0"    type="priority"/>  <!-- Dest East -->
+    <node id="D2"  x="600"  y="-200" type="priority"/>  <!-- Dest2 East -->
+
+    <!-- North residential entries -->
+    <node id="NR1" x="0"    y="150"  type="priority"/>  <!-- R1 Residential -->
+    <node id="NR2" x="200"  y="150"  type="priority"/>  <!-- North entry -->
+    <node id="NR3" x="400"  y="150"  type="priority"/>  <!-- R2 Residential -->
+
+    <!-- South residential exits -->
+    <node id="SR1" x="200"  y="-350" type="priority"/>  <!-- R3 Residential -->
+    <node id="SR2" x="400"  y="-350" type="priority"/>  <!-- R4 Residential -->
+
+    <!-- Main grid: Row 1 - Main Highway -->
+    <node id="J1" x="0"   y="0"    type="traffic_light"/>
+    <node id="J2" x="200" y="0"    type="traffic_light"/>
+    <node id="J3" x="400" y="0"    type="traffic_light"/>
+
+    <!-- Main grid: Row 2 - City Road -->
+    <node id="J4" x="0"   y="-100" type="traffic_light"/>
+    <node id="J5" x="200" y="-100" type="traffic_light"/>
+    <node id="J6" x="400" y="-100" type="traffic_light"/>
+
+    <!-- Main grid: Row 3 - Local Street -->
+    <node id="J7" x="0"   y="-200" type="traffic_light"/>
+    <node id="J8" x="200" y="-200" type="traffic_light"/>
+    <node id="J9" x="400" y="-200" type="traffic_light"/>
+
+</nodes>
