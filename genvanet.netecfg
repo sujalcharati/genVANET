@@ -8,6 +8,7 @@
     <input>
         <sumocfg-file value="genvanet.sumocfg"/>
         <sumo-net-file value="genvanet.net.xml"/>
+        <route-files value="genvanet.rou.xml"/>
     </input>
 
     <processing>
