@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<edges xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/edges_file.xsd">
+
+    <!-- ====== MAIN HIGHWAY (Row 1) - 2 lanes, 50 km/h ====== -->
+    <edge id="S1_J1"  from="S1" to="J1" numLanes="2" speed="13.89"/>
+    <edge id="J1_J2"  from="J1" to="J2" numLanes="2" speed="13.89"/>
+    <edge id="J2_J1"  from="J2" to="J1" numLanes="2" speed="13.89"/>
+    <edge id="J2_J3"  from="J2" to="J3" numLanes="2" speed="13.89"/>
+    <edge id="J3_J2"  from="J3" to="J2" numLanes="2" speed="13.89"/>
+    <edge id="J3_D1"  from="J3" to="D1" numLanes="2" speed="13.89"/>
+
+    <!-- ====== CITY ROAD (Row 2) - 1 lane, 40 km/h ====== -->
+    <edge id="J4_J5"  from="J4" to="J5" numLanes="1" speed="11.11"/>
+    <edge id="J5_J4"  from="J5" to="J4" numLanes="1" speed="11.11"/>
+    <edge id="J5_J6"  from="J5" to="J6" numLanes="1" speed="11.11"/>
+    <edge id="J6_J5"  from="J6" to="J5" numLanes="1" speed="11.11"/>
+
+    <!-- ====== LOCAL STREET (Row 3) - 1 lane, 30 km/h ====== -->
+    <edge id="S2_J7"  from="S2" to="J7" numLanes="1" speed="8.33"/>
+    <edge id="J7_J8"  from="J7" to="J8" numLanes="1" speed="8.33"/>
+    <edge id="J8_J7"  from="J8" to="J7" numLanes="1" speed="8.33"/>
+    <edge id="J8_J9"  from="J8" to="J9" numLanes="1" speed="8.33"/>
+    <edge id="J9_J8"  from="J9" to="J8" numLanes="1" speed="8.33"/>
+    <edge id="J9_D2"  from="J9" to="D2" numLanes="1" speed="8.33"/>
+
+    <!-- ====== VERTICAL: Column 1 (J1-J4-J7) ====== -->
+    <edge id="J1_J4"  from="J1" to="J4" numLanes="1" speed="11.11"/>
+    <edge id="J4_J1"  from="J4" to="J1" numLanes="1" speed="11.11"/>
+    <edge id="J4_J7"  from="J4" to="J7" numLanes="1" speed="8.33"/>
+    <edge id="J7_J4"  from="J7" to="J4" numLanes="1" speed="8.33"/>
+
+    <!-- ====== VERTICAL: Column 2 (J2-J5-J8) ====== -->
+    <edge id="J2_J5"  from="J2" to="J5" numLanes="1" speed="11.11"/>
+    <edge id="J5_J2"  from="J5" to="J2" numLanes="1" speed="11.11"/>
+    <edge id="J5_J8"  from="J5" to="J8" numLanes="1" speed="8.33"/>
+    <edge id="J8_J5"  from="J8" to="J5" numLanes="1" speed="8.33"/>
+
+    <!-- ====== VERTICAL: Column 3 (J3-J6-J9) ====== -->
+    <edge id="J3_J6"  from="J3" to="J6" numLanes="1" speed="11.11"/>
+    <edge id="J6_J3"  from="J6" to="J3" numLanes="1" speed="11.11"/>
+    <edge id="J6_J9"  from="J6" to="J9" numLanes="1" speed="8.33"/>
+    <edge id="J9_J6"  from="J9" to="J6" numLanes="1" speed="8.33"/>
+
+    <!-- ====== NORTH RESIDENTIAL ENTRIES (1 lane, 30 km/h) ====== -->
+    <edge id="NR1_J1" from="NR1" to="J1" numLanes="1" speed="8.33"/>
+    <edge id="NR2_J2" from="NR2" to="J2" numLanes="1" speed="8.33"/>
+    <edge id="NR3_J3" from="NR3" to="J3" numLanes="1" speed="8.33"/>
+
+    <!-- ====== SOUTH RESIDENTIAL EXITS (1 lane, 30 km/h) ====== -->
+    <edge id="J8_SR1" from="J8" to="SR1" numLanes="1" speed="8.33"/>
+    <edge id="J9_SR2" from="J9" to="SR2" numLanes="1" speed="8.33"/>
+
+</edges>
