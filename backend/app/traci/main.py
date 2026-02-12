@@ -61,7 +61,6 @@ def get_vehicle_data():
             "lane_position": round(traci.vehicle.getLanePosition(vid), 2),
             "route": list(traci.vehicle.getRoute(vid)),
             "type": traci.vehicle.getTypeID(vid),
-            "co2_emission": round(traci.vehicle.getCO2Emission(vid), 2),
         })
     return vehicles
 

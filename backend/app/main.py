@@ -68,11 +68,9 @@ def run_simulation(req: ScenarioRequest):
 
     # Build summary
     all_vehicles = set()
-    total_co2 = 0.0
     for step in steps:
         for v in step["vehicles"]:
             all_vehicles.add(v["id"])
-            total_co2 += v["co2_emission"]
 
     return {
         "scenario": {
@@ -84,7 +82,6 @@ def run_simulation(req: ScenarioRequest):
         "summary": {
             "total_steps": len(steps),
             "total_vehicles": len(all_vehicles),
-            "total_co2_mg": round(total_co2, 2),
         },
         "steps": steps,
     }

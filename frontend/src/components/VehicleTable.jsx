@@ -29,7 +29,6 @@ export default function VehicleTable({ vehicles }) {
               <th className="px-4 py-2">Speed (m/s)</th>
               <th className="px-4 py-2">Road</th>
               <th className="px-4 py-2">Position</th>
-              <th className="px-4 py-2">CO2 (mg/s)</th>
             </tr>
           </thead>
           <tbody>
@@ -44,7 +43,6 @@ export default function VehicleTable({ vehicles }) {
                 <td className="px-4 py-2">
                   ({v.position.x}, {v.position.y})
                 </td>
-                <td className="px-4 py-2">{v.co2_emission}</td>
               </tr>
             ))}
           </tbody>
