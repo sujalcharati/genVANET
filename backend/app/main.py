@@ -12,6 +12,8 @@ from pydantic import BaseModel
 
 from .traci.scenario import generate_scenario, DENSITY_CONFIG, MIX_CONFIG, PATTERN_FN
 from .traci.main import run_full_simulation
+from .ai_model import generate_prediction
+from .validator import validate_prediction
 
 app = FastAPI(title="genVANET API", version="0.1.0")
 
@@ -84,4 +86,75 @@ def run_simulation(req: ScenarioRequest):
             "total_vehicles": len(all_vehicles),
         },
         "steps": steps,
+    }
+
+
+class PredictRequest(BaseModel):
+    density: str = "medium"
+    vehicle_mix: str = "mixed"
+    pattern: str = "uniform"
+    seed: int = 42
+    vehicle_type: str = "car"         # car | ambulance
+    objective: str = "fast"           # fast | safe
+
+
+@app.post("/predict")
+def predict(req: PredictRequest):
+    """
+    Run simulation → collect traffic data → send to AI → validate → return.
+
+    This is the main endpoint that ties SUMO + AI + validation together.
+    """
+    # Validate inputs
+    if req.density not in DENSITY_CONFIG:
+        raise HTTPException(400, f"Invalid density. Options: {list(DENSITY_CONFIG.keys())}")
+    if req.vehicle_type not in ("car", "ambulance"):
+        raise HTTPException(400, "vehicle_type must be 'car' or 'ambulance'")
+    if req.objective not in ("fast", "safe"):
+        raise HTTPException(400, "objective must be 'fast' or 'safe'")
+
+    # Step 1: Run SUMO simulation
+    route_xml, duration = generate_scenario(
+        density=req.density,
+        vehicle_mix=req.vehicle_mix,
+        pattern=req.pattern,
+        seed=req.seed,
+    )
+    steps = run_full_simulation(route_xml=route_xml, duration=duration)
+
+    if not steps:
+        raise HTTPException(500, "Simulation produced no data")
+
+    # Step 2: Pick the step with peak traffic (most vehicles) for AI analysis
+    peak_step = max(steps, key=lambda s: s["stats"]["active_vehicles"])
+
+    # Step 3: Send traffic data to AI model
+    ai_prediction = generate_prediction(
+        traffic_data=peak_step,
+        vehicle_type=req.vehicle_type,
+        objective=req.objective,
+    )
+
+    # Step 4: Validate AI output
+    validated = validate_prediction(ai_prediction)
+
+    # Step 5: Return everything
+    return {
+        "scenario": {
+            "density": req.density,
+            "vehicle_mix": req.vehicle_mix,
+            "pattern": req.pattern,
+            "vehicle_type": req.vehicle_type,
+            "objective": req.objective,
+        },
+        "traffic_snapshot": {
+            "time": peak_step["time"],
+            "active_vehicles": peak_step["stats"]["active_vehicles"],
+            "edges": peak_step["edges"][:10],
+        },
+        "ai_prediction": validated["prediction"],
+        "validation": {
+            "is_valid": validated["is_valid"],
+            "errors": validated["errors"],
+        },
     }
