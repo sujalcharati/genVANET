@@ -5,116 +5,175 @@ Sends structured traffic data to the model and gets back
 future predictions and route suggestions.
 """
 
+import re
 import requests
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_URL = "http://localhost:11434/api/chat"
 MODEL_NAME = "tinyllama"
+
+# ── Route definitions mapped to actual SUMO edges ─────────────
+ROUTES = {
+    "Route A": {
+        "name": "Highway Direct",
+        "sumo_id": "highway_direct",
+        "edges": ["S1_J1", "J1_J2", "J2_J3", "J3_D1"],
+        "description": "direct highway, fastest when clear",
+    },
+    "Route B": {
+        "name": "City Road",
+        "sumo_id": "highway_via_city",
+        "edges": ["S1_J1", "J1_J4", "J4_J5", "J5_J6", "J6_J3", "J3_D1"],
+        "description": "city road, medium distance",
+    },
+    "Route C": {
+        "name": "Local Street",
+        "sumo_id": "highway_via_local",
+        "edges": ["S1_J1", "J1_J4", "J4_J7", "J7_J8", "J8_J9", "J9_J6", "J6_J3", "J3_D1"],
+        "description": "local streets, longest but avoids highway",
+    },
+}
+
+SYSTEM_PROMPT = """You are a traffic prediction AI. You receive traffic data and reply in EXACTLY this format:
+
+PREDICTION: <traffic forecast>
+CONGESTION: <which roads will congest>
+RECOMMENDED_ROUTE: <Route A or Route B or Route C>
+EXPECTED_DELAY: <number in seconds>
+EXPLANATION: <one sentence reason>
+
+Only output these 5 lines. Nothing else."""
+
+
+def _calc_route_stats(edges_data):
+    """
+    Calculate per-route stats (avg speed, total vehicles, total wait)
+    from actual SUMO edge data.
+    """
+    # Build lookup: edge_id -> edge data
+    edge_lookup = {e["id"]: e for e in edges_data}
+
+    route_stats = {}
+    for route_label, route_info in ROUTES.items():
+        speeds = []
+        total_vehicles = 0
+        total_wait = 0.0
+
+        for edge_id in route_info["edges"]:
+            if edge_id in edge_lookup:
+                e = edge_lookup[edge_id]
+                if e["mean_speed"] > 0:
+                    speeds.append(e["mean_speed"])
+                total_vehicles += e["vehicle_count"]
+                total_wait += e["waiting_time"]
+
+        avg_speed = round(sum(speeds) / len(speeds), 2) if speeds else 0
+        route_stats[route_label] = {
+            "avg_speed": avg_speed,
+            "vehicles": total_vehicles,
+            "waiting_time": round(total_wait, 1),
+            "edge_count": len(route_info["edges"]),
+        }
+
+    return route_stats
+
+
+def _pick_best_route(route_stats, objective="fast"):
+    """
+    Analytically pick the best route from real data.
+    Used as a fallback when AI gives bad output.
+    """
+    best = None
+    best_score = None
+
+    for label, stats in route_stats.items():
+        if objective == "fast":
+            # Higher speed + fewer edges = better
+            score = stats["avg_speed"] - (stats["edge_count"] * 0.5)
+        else:
+            # Fewer vehicles + less waiting = safer
+            score = -(stats["vehicles"] + stats["waiting_time"])
+
+        if best_score is None or score > best_score:
+            best_score = score
+            best = label
+
+    return best or "Route A"
+
+
+def _estimate_delay(route_stats, route_label):
+    """
+    Estimate travel delay in seconds from real data.
+    delay = (edges * avg_edge_length) / speed + waiting_time
+    Assumes ~150m per edge.
+    """
+    stats = route_stats.get(route_label, {})
+    speed = stats.get("avg_speed", 5)
+    if speed < 1:
+        speed = 1
+    edge_count = stats.get("edge_count", 4)
+    wait = stats.get("waiting_time", 0)
+    distance = edge_count * 150  # ~150m per edge
+    return round((distance / speed) + wait)
 
 
 def build_prompt(traffic_data, vehicle_type="car", objective="fast"):
     """
-    Build a structured prompt from simulation data and user inputs.
-
-    Args:
-        traffic_data: dict with edge stats, vehicle count, avg speed
-        vehicle_type: "car" or "ambulance"
-        objective: "fast" or "safe"
-
-    Returns:
-        str: The prompt to send to the AI model
+    Build a concise prompt with real per-route stats.
     """
-    # Extract summary stats from traffic data
     edges = traffic_data.get("edges", [])
     stats = traffic_data.get("stats", {})
     active_vehicles = stats.get("active_vehicles", 0)
 
-    # Calculate average speed across all edges
-    speeds = [e["mean_speed"] for e in edges if e["mean_speed"] > 0]
-    avg_speed = round(sum(speeds) / len(speeds), 2) if speeds else 0
+    route_stats = _calc_route_stats(edges)
 
-    # Determine congestion level
-    if avg_speed > 10:
-        congestion = "low"
-    elif avg_speed > 5:
-        congestion = "moderate"
-    else:
-        congestion = "heavy"
-
-    # Build per-edge info for the prompt
-    edge_info = ""
-    for e in edges[:10]:  # Limit to top 10 edges to keep prompt short
-        edge_info += (
-            f"  - {e['id']}: speed={e['mean_speed']} m/s, "
-            f"vehicles={e['vehicle_count']}, "
-            f"waiting_time={e['waiting_time']}s\n"
+    # Build route summary with real numbers
+    route_lines = []
+    for label, info in ROUTES.items():
+        rs = route_stats[label]
+        route_lines.append(
+            f"- {label} ({info['name']}): "
+            f"speed={rs['avg_speed']}m/s, "
+            f"vehicles={rs['vehicles']}, "
+            f"wait={rs['waiting_time']}s"
         )
+    route_info = "\n".join(route_lines)
 
-    # Available routes from the network
-    routes_info = """Available routes:
-  - Route A (Highway Direct): S1 -> J1 -> J2 -> J3 -> D1 (fastest when clear)
-  - Route B (City Road): S1 -> J1 -> J4 -> J5 -> J6 -> J3 -> D1 (medium distance)
-  - Route C (Local Street): S1 -> J1 -> J4 -> J7 -> J8 -> J9 -> D2 (longest but avoids highway)"""
+    prompt = f"""Traffic: {active_vehicles} vehicles on network.
 
-    prompt = f"""You are a traffic prediction system for a vehicular network (VANET).
-Analyze the current traffic data and provide predictions and route suggestions.
+Route conditions:
+{route_info}
 
-CURRENT TRAFFIC DATA:
-- Total active vehicles: {active_vehicles}
-- Average speed: {avg_speed} m/s ({round(avg_speed * 3.6, 1)} km/h)
-- Congestion level: {congestion}
+Vehicle: {vehicle_type}, Goal: {objective}
 
-EDGE-LEVEL DATA:
-{edge_info}
-
-{routes_info}
-
-USER PREFERENCES:
-- Vehicle type: {vehicle_type}
-- Optimization objective: {objective}
-
-Based on this data, provide:
-1. PREDICTION: What will traffic look like in the next 5 minutes?
-2. CONGESTION: Which roads will get more congested?
-3. RECOMMENDED ROUTE: Which route is best for this {vehicle_type} optimizing for {objective}?
-4. EXPECTED DELAY: Estimated travel time in seconds
-5. EXPLANATION: One sentence explaining your recommendation
-
-Respond in this exact format:
-PREDICTION: <your prediction>
-CONGESTION: <congestion forecast>
-RECOMMENDED_ROUTE: <Route A or Route B or Route C>
-EXPECTED_DELAY: <number in seconds>
-EXPLANATION: <one sentence>"""
+Which route is best? Give prediction now."""
 
     return prompt
 
 
 def query_model(prompt):
     """
-    Send a prompt to Ollama and get the response.
-
-    Args:
-        prompt: str - the constructed prompt
-
-    Returns:
-        str: raw model response text
+    Send a prompt to Ollama using the chat API for better instruction following.
     """
     try:
         response = requests.post(
             OLLAMA_URL,
             json={
                 "model": MODEL_NAME,
-                "prompt": prompt,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
                 "stream": False,
                 "options": {
                     "temperature": 0.7,
-                    "num_predict": 300,  # Keep response short
+                    "num_predict": 500,
                 },
             },
-            timeout=60,
+            timeout=120,
         )
         response.raise_for_status()
-        return response.json().get("response", "")
+        data = response.json()
+        return data.get("message", {}).get("content", "")
     except requests.ConnectionError:
         return "ERROR: Cannot connect to Ollama. Make sure it is running (ollama serve)."
     except requests.Timeout:
@@ -125,13 +184,8 @@ def query_model(prompt):
 
 def parse_response(raw_response):
     """
-    Parse the structured AI response into a dict.
-
-    Args:
-        raw_response: str - raw text from the model
-
-    Returns:
-        dict with prediction, congestion, recommended_route, expected_delay, explanation
+    Parse the AI response into a dict.
+    Uses regex to be more flexible with formatting variations.
     """
     result = {
         "prediction": "",
@@ -142,21 +196,25 @@ def parse_response(raw_response):
         "raw_response": raw_response,
     }
 
-    for line in raw_response.strip().split("\n"):
-        line = line.strip()
-        if line.startswith("PREDICTION:"):
-            result["prediction"] = line.replace("PREDICTION:", "").strip()
-        elif line.startswith("CONGESTION:"):
-            result["congestion"] = line.replace("CONGESTION:", "").strip()
-        elif line.startswith("RECOMMENDED_ROUTE:"):
-            result["recommended_route"] = line.replace("RECOMMENDED_ROUTE:", "").strip()
-        elif line.startswith("EXPECTED_DELAY:"):
-            delay_str = line.replace("EXPECTED_DELAY:", "").strip()
-            # Extract number from string like "120 seconds" or "120"
-            digits = "".join(c for c in delay_str if c.isdigit())
-            result["expected_delay"] = int(digits) if digits else 0
-        elif line.startswith("EXPLANATION:"):
-            result["explanation"] = line.replace("EXPLANATION:", "").strip()
+    # Use regex for flexible matching (handles extra spaces, numbering, etc.)
+    patterns = {
+        "prediction": r"PREDICTION\s*:\s*(.+)",
+        "congestion": r"CONGESTION\s*:\s*(.+)",
+        "recommended_route": r"RECOMMENDED[_\s]ROUTE\s*:\s*(.+)",
+        "expected_delay": r"EXPECTED[_\s]DELAY\s*:\s*(.+)",
+        "explanation": r"EXPLANATION\s*:\s*(.+)",
+    }
+
+    for key, pattern in patterns.items():
+        match = re.search(pattern, raw_response, re.IGNORECASE)
+        if match:
+            value = match.group(1).strip()
+            if key == "expected_delay":
+                # Extract first number (int or float) from string like "25.0s" or "120 seconds"
+                num_match = re.search(r"(\d+\.?\d*)", value)
+                result[key] = int(float(num_match.group(1))) if num_match else 0
+            else:
+                result[key] = value
 
     return result
 
@@ -164,16 +222,49 @@ def parse_response(raw_response):
 def generate_prediction(traffic_data, vehicle_type="car", objective="fast"):
     """
     Main function: takes traffic data + user inputs, returns AI prediction.
-
-    Args:
-        traffic_data: dict from simulation step_and_collect()
-        vehicle_type: "car" or "ambulance"
-        objective: "fast" or "safe"
-
-    Returns:
-        dict with prediction results
+    Uses real SUMO data for analytical fallbacks when AI gives bad output.
     """
+    edges = traffic_data.get("edges", [])
+    route_stats = _calc_route_stats(edges)
+
+    # Get AI prediction
     prompt = build_prompt(traffic_data, vehicle_type, objective)
     raw_response = query_model(prompt)
     parsed = parse_response(raw_response)
+
+    # Analytical fallback: fill in blanks with real data
+    best_route = _pick_best_route(route_stats, objective)
+
+    if not parsed["recommended_route"] or "route" not in parsed["recommended_route"].lower():
+        parsed["recommended_route"] = best_route
+
+    if parsed["expected_delay"] < 10:
+        parsed["expected_delay"] = _estimate_delay(route_stats, best_route)
+
+    if not parsed["prediction"] or len(parsed["prediction"]) < 10:
+        active = traffic_data.get("stats", {}).get("active_vehicles", 0)
+        parsed["prediction"] = (
+            f"Network has {active} active vehicles. "
+            f"{best_route} has best conditions with "
+            f"{route_stats[best_route]['avg_speed']}m/s avg speed."
+        )
+
+    if not parsed["congestion"]:
+        # Find the most congested route
+        worst = max(route_stats, key=lambda r: route_stats[r]["vehicles"])
+        parsed["congestion"] = (
+            f"{worst} is most congested with "
+            f"{route_stats[worst]['vehicles']} vehicles"
+        )
+
+    if not parsed["explanation"] or len(parsed["explanation"]) < 10:
+        parsed["explanation"] = (
+            f"{best_route} recommended — "
+            f"avg speed {route_stats[best_route]['avg_speed']}m/s, "
+            f"{route_stats[best_route]['vehicles']} vehicles on route."
+        )
+
+    # Attach route stats for the frontend
+    parsed["route_stats"] = route_stats
+
     return parsed
