@@ -5,7 +5,7 @@ Applies simple safety checks to ensure generated outputs
 are reasonable before showing them to the user.
 """
 
-# Valid routes in our network
+# Valid routes matching ai_model.ROUTES
 VALID_ROUTES = {"Route A", "Route B", "Route C"}
 
 # Delay limits (in seconds)
@@ -17,15 +17,9 @@ def validate_prediction(prediction):
     """
     Validate AI-generated prediction with simple rule checks.
 
-    Args:
-        prediction: dict from ai_model.parse_response()
-
-    Returns:
-        dict: {
-            "is_valid": bool,
-            "errors": list of error messages,
-            "prediction": the (possibly corrected) prediction
-        }
+    Note: ai_model.generate_prediction() already applies analytical
+    fallbacks, so most fields should be populated by the time they
+    reach here.  This is the final safety net.
     """
     errors = []
     corrected = prediction.copy()
@@ -35,12 +29,14 @@ def validate_prediction(prediction):
     route_valid = False
     for valid_route in VALID_ROUTES:
         if valid_route.lower() in route.lower():
+            # Normalize to clean name (e.g. "Route A (Highway Direct)" -> "Route A")
+            corrected["recommended_route"] = valid_route
             route_valid = True
             break
 
-    if not route_valid and route:
+    if not route_valid:
         errors.append(f"Invalid route '{route}'. Must be one of {VALID_ROUTES}")
-        corrected["recommended_route"] = "Route A"  # Default fallback
+        corrected["recommended_route"] = "Route A"
 
     # Rule 2: Expected delay must be within reasonable limits
     delay = prediction.get("expected_delay", 0)
