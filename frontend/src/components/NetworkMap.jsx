@@ -36,7 +36,7 @@ const ALL_EDGES = [
   ["S1", "J1"], ["J3", "D1"], ["J9", "D2"],
 ];
 
-export default function NetworkMap({ recommendedRoute, routeStats }) {
+export default function NetworkMap({ recommendedRoute, routeStats, title }) {
   const buildPath = (nodes) => {
     return nodes
       .map((n, i) => {
@@ -49,7 +49,7 @@ export default function NetworkMap({ recommendedRoute, routeStats }) {
   return (
     <div className="bg-gray-800/50 backdrop-blur rounded-2xl border border-gray-700/50 p-5">
       <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
-        Network Map
+        {title || "Network Map"}
       </h3>
       <svg viewBox="0 0 560 400" className="w-full">
         {/* Grid edges */}
@@ -119,7 +119,7 @@ export default function NetworkMap({ recommendedRoute, routeStats }) {
               <text x="28" y="4" className="text-[11px] fill-gray-300">
                 {label}
                 {stats ? ` — ${stats.avg_speed}m/s, ${stats.vehicles} cars` : ""}
-                {isRec ? " ★" : ""}
+                {isRec ? " (recommended)" : ""}
               </text>
             </g>
           );

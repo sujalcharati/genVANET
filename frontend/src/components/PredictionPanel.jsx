@@ -1,11 +1,11 @@
-export default function PredictionPanel({ prediction, validation }) {
+export default function PredictionPanel({ prediction, validation, title }) {
   const isValid = validation?.is_valid;
 
   return (
     <div className="bg-gray-800/50 backdrop-blur rounded-2xl border border-gray-700/50 p-6 space-y-5">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
-          AI Prediction
+          {title || "AI Prediction"}
         </h3>
         <span
           className={`px-3 py-1 rounded-full text-xs font-semibold ${

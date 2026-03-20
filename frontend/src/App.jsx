@@ -13,6 +13,7 @@ import PredictForm from "./components/PredictForm";
 import PredictionPanel from "./components/PredictionPanel";
 import RouteCard from "./components/RouteCard";
 import NetworkMap from "./components/NetworkMap";
+import ModelComparison from "./components/ModelComparison";
 
 const TABS = [
   { id: "predict", label: "AI Prediction", icon: "🤖" },
@@ -71,6 +72,7 @@ export default function App() {
 
   const currentStep = simResult?.steps?.[stepIndex];
   const aiPred = predResult?.ai_prediction;
+  const groqPred = predResult?.groq_prediction;
   const routeStats = aiPred?.route_stats;
 
   return (
@@ -143,17 +145,48 @@ export default function App() {
                   </span>
                 </div>
 
-                {/* Main grid: Map + Prediction */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Model Comparison Dashboard */}
+                <ModelComparison comparison={predResult.comparison} />
+
+                {/* Side-by-side: Prediction + NetworkMap for each model */}
+                {groqPred && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* TinyLlama column */}
+                    <div className="space-y-4">
+                      <PredictionPanel
+                        prediction={aiPred}
+                        validation={predResult.validation}
+                        title="TinyLlama 1.1B (Local)"
+                      />
+                      <NetworkMap
+                        recommendedRoute={aiPred.recommended_route}
+                        routeStats={routeStats}
+                        title="TinyLlama Network Map"
+                      />
+                    </div>
+                    {/* Groq column */}
+                    <div className="space-y-4">
+                      <PredictionPanel
+                        prediction={groqPred}
+                        validation={predResult.groq_validation}
+                        title="Llama 3.1 8B (Groq API)"
+                      />
+                      <NetworkMap
+                        recommendedRoute={groqPred.recommended_route}
+                        routeStats={routeStats}
+                        title="Groq Network Map"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Fallback: single map if no groq prediction */}
+                {!groqPred && (
                   <NetworkMap
                     recommendedRoute={aiPred.recommended_route}
                     routeStats={routeStats}
                   />
-                  <PredictionPanel
-                    prediction={aiPred}
-                    validation={predResult.validation}
-                  />
-                </div>
+                )}
 
                 {/* Route comparison cards */}
                 <div>
@@ -174,14 +207,27 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Raw AI response (collapsible) */}
+                {/* Raw AI responses (collapsible) */}
                 <details className="bg-gray-900/50 rounded-xl border border-gray-800 p-4">
                   <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-400 transition">
-                    View Raw AI Response
+                    View Raw AI Responses
                   </summary>
-                  <pre className="mt-3 text-xs text-gray-400 font-mono whitespace-pre-wrap leading-relaxed">
-                    {aiPred.raw_response}
-                  </pre>
+                  <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-blue-400 mb-2 font-semibold">TinyLlama (Local)</p>
+                      <pre className="text-xs text-gray-400 font-mono whitespace-pre-wrap leading-relaxed bg-gray-900 rounded-lg p-3">
+                        {aiPred.raw_response}
+                      </pre>
+                    </div>
+                    {groqPred && (
+                      <div>
+                        <p className="text-xs text-purple-400 mb-2 font-semibold">Llama 3.1 8B (Groq)</p>
+                        <pre className="text-xs text-gray-400 font-mono whitespace-pre-wrap leading-relaxed bg-gray-900 rounded-lg p-3">
+                          {groqPred.raw_response}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
                 </details>
               </>
             )}
