@@ -146,6 +146,31 @@ ollama serve
 
 ---
 
+## Step 4b: Set Up Groq API (Second AI Model for Comparison)
+
+The app compares **TinyLlama (local)** vs **Llama 3.1 8B (cloud)** for route prediction accuracy.
+
+### Get a Free API Key
+1. Go to https://console.groq.com and sign up (free)
+2. Go to **API Keys** -> click **Create API Key**
+3. Copy the key
+
+### Set the Environment Variable
+```bash
+# Linux / macOS
+export GROQ_API_KEY="gsk_your_key_here"
+
+# Windows Command Prompt
+set GROQ_API_KEY=gsk_your_key_here
+
+# Windows PowerShell
+$env:GROQ_API_KEY="gsk_your_key_here"
+```
+
+> **Note:** Set this in the same terminal where you run the backend server.
+
+---
+
 ## Step 5: Set Up the Frontend (React)
 
 ```bash
