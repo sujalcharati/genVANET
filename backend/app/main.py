@@ -12,7 +12,10 @@ from pydantic import BaseModel
 
 from .traci.scenario import generate_scenario, DENSITY_CONFIG, MIX_CONFIG, PATTERN_FN
 from .traci.main import run_full_simulation
-from .ai_model import generate_prediction
+import time
+
+from .ai_model import generate_prediction, _calc_route_stats, _pick_best_route
+from .groq_model import generate_groq_prediction
 from .validator import validate_prediction
 
 app = FastAPI(title="genVANET API", version="0.1.0")
@@ -98,14 +101,12 @@ class PredictRequest(BaseModel):
     objective: str = "fast"           # fast | safe
 
 
+
 @app.post("/predict")
 def predict(req: PredictRequest):
     """
-    Run simulation → collect traffic data → send to AI → validate → return.
-
-    This is the main endpoint that ties SUMO + AI + validation together.
+    Run simulation -> collect traffic data -> send to BOTH models -> compare -> return.
     """
-    # Validate inputs
     if req.density not in DENSITY_CONFIG:
         raise HTTPException(400, f"Invalid density. Options: {list(DENSITY_CONFIG.keys())}")
     if req.vehicle_type not in ("car", "ambulance"):
@@ -113,7 +114,7 @@ def predict(req: PredictRequest):
     if req.objective not in ("fast", "safe"):
         raise HTTPException(400, "objective must be 'fast' or 'safe'")
 
-    # Step 1: Run SUMO simulation
+    # Step 1: Run SUMO simulation (once, shared by both models)
     route_xml, duration = generate_scenario(
         density=req.density,
         vehicle_mix=req.vehicle_mix,
@@ -125,20 +126,65 @@ def predict(req: PredictRequest):
     if not steps:
         raise HTTPException(500, "Simulation produced no data")
 
-    # Step 2: Pick the step with peak traffic (most vehicles) for AI analysis
     peak_step = max(steps, key=lambda s: s["stats"]["active_vehicles"])
 
-    # Step 3: Send traffic data to AI model
-    ai_prediction = generate_prediction(
+    # Step 2: Get analytical best route (ground truth for accuracy check)
+    route_stats = _calc_route_stats(peak_step.get("edges", []))
+    analytical_best = _pick_best_route(route_stats, req.objective)
+
+    # Step 3: Query Model A - TinyLlama (Ollama, local)
+    t0 = time.time()
+    pred_a = generate_prediction(
         traffic_data=peak_step,
         vehicle_type=req.vehicle_type,
         objective=req.objective,
     )
+    time_a = round(time.time() - t0, 2)
 
-    # Step 4: Validate AI output
-    validated = validate_prediction(ai_prediction)
+    # Step 4: Query Model B - Llama 3.1 8B (Groq API, cloud)
+    t0 = time.time()
+    pred_b = generate_groq_prediction(
+        traffic_data=peak_step,
+        vehicle_type=req.vehicle_type,
+        objective=req.objective,
+    )
+    time_b = round(time.time() - t0, 2)
 
-    # Step 5: Return everything
+    # Step 5: Validate both
+    val_a = validate_prediction(pred_a)
+    val_b = validate_prediction(pred_b)
+
+    # Step 6: Build comparison metrics
+    # Normalize recommended route for comparison
+    route_a = val_a["prediction"].get("recommended_route", "")
+    route_b = val_b["prediction"].get("recommended_route", "")
+    accurate_a = route_a == analytical_best
+    accurate_b = route_b == analytical_best
+
+    delay_a = val_a["prediction"].get("expected_delay", 0)
+    delay_b = val_b["prediction"].get("expected_delay", 0)
+
+    comparison = {
+        "route_agreement": route_a == route_b,
+        "analytical_best": analytical_best,
+        "model_a": {
+            "name": "TinyLlama 1.1B",
+            "type": "Local (Ollama)",
+            "route": route_a,
+            "delay": delay_a,
+            "response_time": time_a,
+            "accurate": accurate_a,
+        },
+        "model_b": {
+            "name": "Llama 3.1 8B",
+            "type": "Cloud (Groq API)",
+            "route": route_b,
+            "delay": delay_b,
+            "response_time": time_b,
+            "accurate": accurate_b,
+        },
+    }
+
     return {
         "scenario": {
             "density": req.density,
@@ -152,9 +198,15 @@ def predict(req: PredictRequest):
             "active_vehicles": peak_step["stats"]["active_vehicles"],
             "edges": peak_step["edges"][:10],
         },
-        "ai_prediction": validated["prediction"],
+        "ai_prediction": val_a["prediction"],
         "validation": {
-            "is_valid": validated["is_valid"],
-            "errors": validated["errors"],
+            "is_valid": val_a["is_valid"],
+            "errors": val_a["errors"],
         },
+        "groq_prediction": val_b["prediction"],
+        "groq_validation": {
+            "is_valid": val_b["is_valid"],
+            "errors": val_b["errors"],
+        },
+        "comparison": comparison,
     }
