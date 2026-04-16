@@ -20,12 +20,11 @@ const ROUTE_PATHS = {
 };
 
 const ROUTE_COLORS = {
-  "Route A": "#3b82f6",
-  "Route B": "#f59e0b",
-  "Route C": "#10b981",
+  "Route A": "#3B82F6",
+  "Route B": "#F59E0B",
+  "Route C": "#10B981",
 };
 
-// All edges in the network grid
 const ALL_EDGES = [
   ["J1", "J2"], ["J2", "J3"],
   ["J4", "J5"], ["J5", "J6"],
@@ -47,18 +46,26 @@ export default function NetworkMap({ recommendedRoute, routeStats, title }) {
   };
 
   return (
-    <div className="bg-gray-800/50 backdrop-blur rounded-2xl border border-gray-700/50 p-5">
-      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-4">
+    <div className="bg-card rounded-2xl border border-border p-5 shadow-sm">
+      <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider mb-4">
         {title || "Network Map"}
       </h3>
       <svg viewBox="0 0 560 400" className="w-full">
+        {/* Background grid dots */}
+        <defs>
+          <pattern id="dots" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="10" cy="10" r="0.8" fill="#E5E7EB" />
+          </pattern>
+        </defs>
+        <rect width="560" height="400" fill="url(#dots)" rx="8" />
+
         {/* Grid edges */}
         {ALL_EDGES.map(([a, b], i) => (
           <line
             key={i}
             x1={JUNCTIONS[a].x} y1={JUNCTIONS[a].y}
             x2={JUNCTIONS[b].x} y2={JUNCTIONS[b].y}
-            stroke="#374151"
+            stroke="#D1D5DB"
             strokeWidth="3"
             strokeLinecap="round"
           />
@@ -77,7 +84,7 @@ export default function NetworkMap({ recommendedRoute, routeStats, title }) {
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeDasharray={isRecommended ? "none" : "8 4"}
-              opacity={isRecommended ? 1 : 0.4}
+              opacity={isRecommended ? 1 : 0.35}
               className={isRecommended ? "animate-pulse" : ""}
             />
           );
@@ -93,15 +100,16 @@ export default function NetworkMap({ recommendedRoute, routeStats, title }) {
               <circle
                 cx={pos.x} cy={pos.y}
                 r={isSpecial ? 14 : 10}
-                fill={isEntry ? "#3b82f6" : isExit ? "#ef4444" : "#1f2937"}
-                stroke={isEntry ? "#60a5fa" : isExit ? "#f87171" : "#6b7280"}
+                fill={isEntry ? "#3B82F6" : isExit ? "#EF4444" : "#F9FAFB"}
+                stroke={isEntry ? "#93C5FD" : isExit ? "#FCA5A5" : "#D1D5DB"}
                 strokeWidth="2"
               />
               <text
                 x={pos.x} y={pos.y + 1}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                className="text-[9px] font-bold fill-white"
+                className="text-[9px] font-bold"
+                fill={isSpecial ? "#FFFFFF" : "#4B5563"}
               >
                 {id}
               </text>
@@ -116,7 +124,7 @@ export default function NetworkMap({ recommendedRoute, routeStats, title }) {
           return (
             <g key={label} transform={`translate(10, ${360 + i * 18})`}>
               <line x1="0" y1="0" x2="20" y2="0" stroke={color} strokeWidth="3" />
-              <text x="28" y="4" className="text-[11px] fill-gray-300">
+              <text x="28" y="4" className="text-[11px]" fill="#6B7280">
                 {label}
                 {stats ? ` — ${stats.avg_speed}m/s, ${stats.vehicles} cars` : ""}
                 {isRec ? " (recommended)" : ""}
