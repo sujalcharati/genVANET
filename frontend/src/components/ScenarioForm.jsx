@@ -24,16 +24,16 @@ export default function ScenarioForm({ options, onSubmit, loading }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-gray-800 rounded-xl p-6 space-y-4">
-      <h2 className="text-xl font-bold text-white">Scenario Configuration</h2>
+    <form onSubmit={handleSubmit} className="bg-card rounded-2xl border border-border p-6 space-y-4 shadow-sm">
+      <h2 className="text-lg font-semibold text-text-primary">Scenario Configuration</h2>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm text-gray-400 mb-1">Traffic Density</label>
+          <label className="block text-xs text-text-muted mb-1.5 font-medium">Traffic Density</label>
           <select
             value={density}
             onChange={(e) => setDensity(e.target.value)}
-            className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none"
+            className="w-full bg-surface border border-border text-text-primary rounded-xl px-3 py-2.5 text-sm focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:outline-none transition"
           >
             {options.density?.map((d) => (
               <option key={d} value={d}>{LABELS[d] || d}</option>
@@ -42,11 +42,11 @@ export default function ScenarioForm({ options, onSubmit, loading }) {
         </div>
 
         <div>
-          <label className="block text-sm text-gray-400 mb-1">Vehicle Mix</label>
+          <label className="block text-xs text-text-muted mb-1.5 font-medium">Vehicle Mix</label>
           <select
             value={vehicleMix}
             onChange={(e) => setVehicleMix(e.target.value)}
-            className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none"
+            className="w-full bg-surface border border-border text-text-primary rounded-xl px-3 py-2.5 text-sm focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:outline-none transition"
           >
             {options.vehicle_mix?.map((v) => (
               <option key={v} value={v}>{LABELS[v] || v}</option>
@@ -55,11 +55,11 @@ export default function ScenarioForm({ options, onSubmit, loading }) {
         </div>
 
         <div>
-          <label className="block text-sm text-gray-400 mb-1">Departure Pattern</label>
+          <label className="block text-xs text-text-muted mb-1.5 font-medium">Departure Pattern</label>
           <select
             value={pattern}
             onChange={(e) => setPattern(e.target.value)}
-            className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none"
+            className="w-full bg-surface border border-border text-text-primary rounded-xl px-3 py-2.5 text-sm focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:outline-none transition"
           >
             {options.pattern?.map((p) => (
               <option key={p} value={p}>{LABELS[p] || p}</option>
@@ -68,12 +68,12 @@ export default function ScenarioForm({ options, onSubmit, loading }) {
         </div>
 
         <div>
-          <label className="block text-sm text-gray-400 mb-1">Seed</label>
+          <label className="block text-xs text-text-muted mb-1.5 font-medium">Seed</label>
           <input
             type="number"
             value={seed}
             onChange={(e) => setSeed(Number(e.target.value))}
-            className="w-full bg-gray-700 text-white rounded-lg px-3 py-2 border border-gray-600 focus:border-blue-500 focus:outline-none"
+            className="w-full bg-surface border border-border text-text-primary rounded-xl px-3 py-2.5 text-sm focus:border-brand-400 focus:ring-2 focus:ring-brand-100 focus:outline-none transition"
           />
         </div>
       </div>
@@ -81,7 +81,7 @@ export default function ScenarioForm({ options, onSubmit, loading }) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-semibold py-2.5 rounded-lg transition-colors"
+        className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition-colors shadow-sm"
       >
         {loading ? "Running Simulation..." : "Run Simulation"}
       </button>
