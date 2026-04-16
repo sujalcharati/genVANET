@@ -1,7 +1,7 @@
 export default function StepSlider({ stepIndex, totalSteps, currentTime, onChange }) {
   return (
-    <div className="bg-gray-800 rounded-xl p-4 flex items-center gap-4">
-      <span className="text-sm text-gray-400 w-24">
+    <div className="bg-card rounded-2xl border border-border p-4 flex items-center gap-4 shadow-sm">
+      <span className="text-sm text-text-secondary w-24 font-mono">
         t = {currentTime.toFixed(1)}s
       </span>
       <input
@@ -10,9 +10,9 @@ export default function StepSlider({ stepIndex, totalSteps, currentTime, onChang
         max={totalSteps - 1}
         value={stepIndex}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="flex-1 accent-blue-500"
+        className="flex-1"
       />
-      <span className="text-sm text-gray-400 w-28 text-right">
+      <span className="text-sm text-text-secondary w-28 text-right">
         Step {stepIndex + 1} / {totalSteps}
       </span>
     </div>
