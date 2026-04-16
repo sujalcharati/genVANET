@@ -6,8 +6,12 @@ Endpoints:
     GET  /simulate/options   - Return available scenario options for the frontend
 """
 
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from .traci.scenario import generate_scenario, DENSITY_CONFIG, MIX_CONFIG, PATTERN_FN
@@ -132,7 +136,7 @@ def predict(req: PredictRequest):
     route_stats = _calc_route_stats(peak_step.get("edges", []))
     analytical_best = _pick_best_route(route_stats, req.objective)
 
-    # Step 3: Query Model A - TinyLlama (Ollama, local)
+    # Step 3: Query Model A - Qwen3 32B (Groq API)
     t0 = time.time()
     pred_a = generate_prediction(
         traffic_data=peak_step,
@@ -141,7 +145,7 @@ def predict(req: PredictRequest):
     )
     time_a = round(time.time() - t0, 2)
 
-    # Step 4: Query Model B - Llama 3.1 8B (Groq API, cloud)
+    # Step 4: Query Model B - Llama 3.1 8B (Groq API)
     t0 = time.time()
     pred_b = generate_groq_prediction(
         traffic_data=peak_step,
@@ -168,8 +172,8 @@ def predict(req: PredictRequest):
         "route_agreement": route_a == route_b,
         "analytical_best": analytical_best,
         "model_a": {
-            "name": "TinyLlama 1.1B",
-            "type": "Local (Ollama)",
+            "name": "Qwen3 32B",
+            "type": "Cloud (Groq API)",
             "route": route_a,
             "delay": delay_a,
             "response_time": time_a,
@@ -210,3 +214,18 @@ def predict(req: PredictRequest):
         },
         "comparison": comparison,
     }
+
+
+# --- Serve frontend static files (production) ---
+FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+
+if FRONTEND_DIR.is_dir():
+    app.mount("/assets", StaticFiles(directory=FRONTEND_DIR / "assets"), name="static")
+
+    @app.get("/{full_path:path}")
+    def serve_frontend(full_path: str):
+        """Serve index.html for all non-API routes (SPA fallback)."""
+        file_path = FRONTEND_DIR / full_path
+        if file_path.is_file():
+            return FileResponse(file_path)
+        return FileResponse(FRONTEND_DIR / "index.html")
