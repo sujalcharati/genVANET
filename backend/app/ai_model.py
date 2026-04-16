@@ -1,15 +1,23 @@
 """
-Generative AI integration using Ollama (TinyLlama).
+Generative AI integration using Groq API (Qwen3 32B).
 
 Sends structured traffic data to the model and gets back
 future predictions and route suggestions.
 """
 
+import os
 import re
-import requests
+from pathlib import Path
 
-OLLAMA_URL = "http://localhost:11434/api/chat"
-MODEL_NAME = "tinyllama"
+import requests
+from dotenv import load_dotenv
+
+# Load .env from project root
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+MODEL_NAME = "qwen/qwen3-32b"
 
 # ── Route definitions mapped to actual SUMO edges ─────────────
 ROUTES = {
@@ -152,32 +160,39 @@ Which route is best? Give prediction now."""
 
 def query_model(prompt):
     """
-    Send a prompt to Ollama using the chat API for better instruction following.
+    Send a prompt to Groq API using Gemma 2 9B.
     """
+    if not GROQ_API_KEY:
+        return "ERROR: GROQ_API_KEY not set. Export it as an environment variable."
+
     try:
         response = requests.post(
-            OLLAMA_URL,
+            GROQ_API_URL,
+            headers={
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json",
+            },
             json={
                 "model": MODEL_NAME,
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": prompt},
                 ],
-                "stream": False,
-                "options": {
-                    "temperature": 0.7,
-                    "num_predict": 500,
-                },
+                "temperature": 0.7,
+                "max_tokens": 300,
             },
-            timeout=120,
+            timeout=30,
         )
-        response.raise_for_status()
+        if response.status_code != 200:
+            error_body = response.text
+            print(f"[Groq API Error] {response.status_code}: {error_body}")
+            return f"ERROR: Groq API {response.status_code} - {error_body}"
         data = response.json()
-        return data.get("message", {}).get("content", "")
+        return data["choices"][0]["message"]["content"]
     except requests.ConnectionError:
-        return "ERROR: Cannot connect to Ollama. Make sure it is running (ollama serve)."
+        return "ERROR: Cannot connect to Groq API. Check your internet connection."
     except requests.Timeout:
-        return "ERROR: Ollama took too long to respond."
+        return "ERROR: Groq API took too long to respond."
     except Exception as e:
         return f"ERROR: {str(e)}"
 
