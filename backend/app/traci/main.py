@@ -35,7 +35,7 @@ def start_simulation(gui=False, route_xml=None, duration=300):
     if route_xml:
         # Write generated routes to a temp file
         _temp_route_file = tempfile.NamedTemporaryFile(
-            mode="w", suffix=".rou.xml", dir=BASE_DIR, delete=False
+            mode="w", suffix=".rou.xml", delete=False
         )
         _temp_route_file.write(route_xml)
         _temp_route_file.close()
